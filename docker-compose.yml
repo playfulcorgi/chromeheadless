@@ -1,0 +1,17 @@
+version: '3.5'
+services:
+  chromeheadless:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: playfulcorgi/chromeheadless
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/app
+      - yarn-cache:/root/yarn-cache
+    container_name: playfulcorgi_chromeheadless
+    env_file:
+      - .env
+volumes: 
+  yarn-cache:

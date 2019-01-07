@@ -1,0 +1,22 @@
+{
+  "name": "chromeheadless",
+  "version": "1.0.0",
+  "main": "src/index.bs.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "bsb -make-world",
+    "watch": "node watch.js",
+    "clean": "bsb -clean-world"
+  },
+  "dependencies": {
+    "cache-manager": "^2.9.0",
+    "cache-manager-fs-binary": "^1.0.4",
+    "puppeteer": "^1.11.0"
+  },
+  "devDependencies": {
+    "bs-platform": "^4.0.14",
+    "chokidar": "^2.0.4",
+    "lodash": "^4.17.11",
+    "shelljs": "^0.8.3"
+  }
+}

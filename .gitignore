@@ -1,0 +1,10 @@
+.DS_Store
+/node_modules
+yarn-error.log
+/dist
+/.vscode
+/.env
+yarn.lock
+/.merlin
+/bin
+/lib
