@@ -10,9 +10,12 @@ RUN apt-get update
 RUN apt-get install -y google-chrome-stable
 RUN adduser --disabled-password --gecos '' chromeheadless
 
+RUN apt-get install -y ocaml-nox
+
 COPY . ./
 RUN yarn config set cache-folder /root/yarn-cache
 RUN yarn install
+RUN yarn run build
 
 ENV HANDLER_FILE_SUBPATH="src/handler.js"
 

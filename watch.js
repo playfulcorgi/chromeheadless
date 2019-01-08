@@ -1,13 +1,13 @@
 // Special watch for Reason when sending files via ssh for "yarn build". Otherwise file is built before being fully uploaded.
 const chokidar = require('chokidar')
 const path = require('path')
-const shell = require('shelljs')
 const debounce = require('lodash/debounce')
+const { spawn } = require('child_process')
 
-const fileSizeChangeWait = 200
+const fileSizeChangeWait = 400
 
 const rebuild = () => {
-  shell.exec('yarn run build')
+  spawn('yarn', ['run', 'build'], {stdio: "inherit"})
 }
 
 const debounceGracePeriod = 50

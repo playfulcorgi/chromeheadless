@@ -1,4 +1,4 @@
-Website screenshot service. Written in [ReasonML](https://reasonml.github.io/).
+Website screenshot service. Quick and dirty solution written in [ReasonML](https://reasonml.github.io/).
 
 Running order:
 

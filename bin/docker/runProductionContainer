@@ -1,0 +1,3 @@
+#!/bin/bash
+
+docker run -d -ti --name chromeheadless --rm -p 8888:8888 --env-file .env -e WATCH=false playfulcorgi/chromeheadless

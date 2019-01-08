@@ -1,7 +1,7 @@
 {
   "name": "chromeheadless",
   "version": "1.0.0",
-  "main": "src/index.bs.js",
+  "main": "src/handler.js",
   "license": "MIT",
   "scripts": {
     "build": "bsb -make-world",
@@ -9,14 +9,17 @@
     "clean": "bsb -clean-world"
   },
   "dependencies": {
+    "@glennsl/bs-json": "^3.0.0",
+    "bs-fetch": "^0.3.1",
     "cache-manager": "^2.9.0",
     "cache-manager-fs-binary": "^1.0.4",
+    "es6-promise": "^4.2.5",
+    "isomorphic-fetch": "^2.2.1",
     "puppeteer": "^1.11.0"
   },
   "devDependencies": {
     "bs-platform": "^4.0.14",
     "chokidar": "^2.0.4",
-    "lodash": "^4.17.11",
-    "shelljs": "^0.8.3"
+    "lodash": "^4.17.11"
   }
 }
