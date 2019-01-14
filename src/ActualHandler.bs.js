@@ -28,12 +28,17 @@ function imageQueryFromJs(param) {
 var diskCache = CacheManager.caching({
       store: CacheManagerFsBinary,
       options: {
-        ttl: Caml_format.caml_int_of_string(process.env.CACHE_TTL),
-        maxsize: Caml_format.caml_int_of_string(process.env.CACHE_MAX_SIZE),
+        ttl: Caml_format.caml_int_of_string(process.env.IMAGE_CACHE_TTL),
+        maxsize: Caml_format.caml_int_of_string(process.env.IMAGE_CACHE_MAX_SIZE),
         path: "/diskcache",
         preventfill: true,
         reviveBuffers: true
       }
+    });
+
+var memoryCache = CacheManager.caching({
+      store: "memory",
+      ttl: process.env.WHITELIST_CACHE_TTL
     });
 
 function respondScreenshot(url, response) {
@@ -57,16 +62,19 @@ function respondScreenshot(url, response) {
               }));
 }
 
-function decodeUrlsStructure(list, url) {
+function decodeUrlsStructure(list) {
   var decodeUrlObj = function (input) {
     return /* record */[/* sourceUrl */Json_decode.field("sourceUrl", Json_decode.string, input)];
   };
-  var decodedUrls = Json_decode.array(decodeUrlObj, list);
+  return $$Array.to_list(Json_decode.array(decodeUrlObj, list));
+}
+
+function isWhitelisted(list, url) {
   return List.find((function (sourceUrl) {
                 return url === sourceUrl;
               }), List.map((function (re) {
                     return re[/* sourceUrl */0];
-                  }), $$Array.to_list(decodedUrls)));
+                  }), list));
 }
 
 function screenshotOrErrorResponse(url, response) {
@@ -96,38 +104,46 @@ function handler(request, response) {
   var queryParams = imageQueryFromJs(request.query);
   var match = queryParams[/* url */0];
   if (match !== undefined) {
-    var url = match;
+    var requestedUrl = match;
     var match$1 = process.env.WHITELIST_URL;
     if (match$1 !== undefined) {
-      fetch(decodeURIComponent(match$1)).then((function (prim) {
-                  return prim.json();
-                })).then((function (list) {
+      var whitelistUrl = match$1;
+      memoryCache.wrap(whitelistUrl, (function (param) {
+                  return fetch(decodeURIComponent(whitelistUrl)).then((function (prim) {
+                                return prim.json();
+                              }));
+                })).then((function (jsonList) {
+                var decodedListStructure = decodeUrlsStructure(jsonList);
+                var isWhitelistedResult = isWhitelisted(decodedListStructure, requestedUrl);
                 var exit = 0;
                 var val;
                 try {
-                  val = decodeUrlsStructure(list, url);
+                  val = isWhitelistedResult;
                   exit = 1;
                 }
                 catch (exn){
                   if (exn === Caml_builtin_exceptions.not_found) {
                     response.statusCode = 400;
                     response.end("not on whitelist");
+                    return Promise.resolve(/* () */0);
                   } else {
                     throw exn;
                   }
                 }
                 if (exit === 1) {
-                  screenshotOrErrorResponse(url, response);
+                  screenshotOrErrorResponse(requestedUrl, response);
+                  return Promise.resolve(/* () */0);
                 }
-                return Promise.resolve(/* () */0);
-              })).catch((function (param) {
+                
+              })).catch((function (error) {
+              console.log("error", error);
               response.statusCode = 500;
               response.end("Could not use whitelist. make sure the whitelist url is correct and data structure returned is array.");
               return Promise.resolve(/* () */0);
             }));
       return /* () */0;
     } else {
-      screenshotOrErrorResponse(url, response);
+      screenshotOrErrorResponse(requestedUrl, response);
       return /* () */0;
     }
   } else {
@@ -140,8 +156,10 @@ function handler(request, response) {
 exports.imageQueryToJs = imageQueryToJs;
 exports.imageQueryFromJs = imageQueryFromJs;
 exports.diskCache = diskCache;
+exports.memoryCache = memoryCache;
 exports.respondScreenshot = respondScreenshot;
 exports.decodeUrlsStructure = decodeUrlsStructure;
+exports.isWhitelisted = isWhitelisted;
 exports.screenshotOrErrorResponse = screenshotOrErrorResponse;
 exports.handler = handler;
 /*  Not a pure module */
