@@ -5,21 +5,24 @@
 [@bs.deriving {jsConverter: newType}]
 type imageQuery = {url: option(string)};
 
-[@bs.val] external cacheTTL: string = "process.env.CACHE_TTL";
-[@bs.val] external cacheMaxSize: string = "process.env.CACHE_MAX_SIZE";
+[@bs.val] external imageCacheTTL: string = "process.env.IMAGE_CACHE_TTL";
+[@bs.val] external imageCacheMaxSize: string = "process.env.IMAGE_CACHE_MAX_SIZE";
 [@bs.val] external whitelistUrl: option(string) = "process.env.WHITELIST_URL";
+[@bs.val] external whitelistCacheTTL: option(string) = "process.env.WHITELIST_CACHE_TTL";
 
 let diskCache =
   CacheManager.caching({
     "store": CacheManager.fsStore,
     "options": {
-      ttl: int_of_string(cacheTTL),
-      maxsize: int_of_string(cacheMaxSize),
+      ttl: int_of_string(imageCacheTTL),
+      maxsize: int_of_string(imageCacheMaxSize),
       path: "/diskcache",
       preventfill: true,
       reviveBuffers: true,
     },
   });
+
+let memoryCache = CacheManager.caching({"store": "memory", "ttl": whitelistCacheTTL});
 
 let respondScreenshot = (url, response) =>
   Js.Promise.(
@@ -47,12 +50,15 @@ let respondScreenshot = (url, response) =>
 
 type urlContainerObject = {sourceUrl: string};
 
-let decodeUrlsStructure = (list, url) => {
+let decodeUrlsStructure = list => {
   let decodeUrlObj = input: urlContainerObject => Json.Decode.{sourceUrl: input |> field("sourceUrl", string)};
   let decodeUrls = list => list |> Json.Decode.array(decodeUrlObj);
   let decodedUrls = decodeUrls(list);
-  decodedUrls |> Array.to_list |> List.map(re => re.sourceUrl) |> List.find(sourceUrl => url === sourceUrl);
+  decodedUrls |> Array.to_list;
 };
+
+let isWhitelisted = (list: list(urlContainerObject), url: string) =>
+  list |> List.map(re => re.sourceUrl) |> List.find(sourceUrl => url === sourceUrl);
 
 let screenshotOrErrorResponse = (url, response) =>
   switch (respondScreenshot(url, response)) {
@@ -68,30 +74,31 @@ let handler = (request, response: ConnectServer.response) => {
   | None =>
     ConnectServer.setStatusCode(response, 400);
     ConnectServer.callVariantResponse1(response);
-  | Some(url) =>
+  | Some(requestedUrl) =>
     Js.Promise.(
       switch (whitelistUrl) {
       | None =>
-        screenshotOrErrorResponse(url, response);
+        screenshotOrErrorResponse(requestedUrl, response);
         ignore();
       | Some(whitelistUrl) =>
-        whitelistUrl
-        |> decodeURIComponent
-        |> Fetch.fetch
-        |> then_(Fetch.Response.json)
-        |> then_(list => {
-             switch (decodeUrlsStructure(list, url)) {
+        memoryCache##wrap(whitelistUrl, () =>
+          whitelistUrl |> decodeURIComponent |> Fetch.fetch |> then_(Fetch.Response.json)
+        )
+        |> then_(jsonList => {
+             let decodedListStructure = jsonList->decodeUrlsStructure;
+             let isWhitelistedResult = decodedListStructure->isWhitelisted(requestedUrl);
+             switch (isWhitelistedResult) {
              | exception Not_found =>
                ConnectServer.setStatusCode(response, 400);
                ConnectServer.callVariantResponse2(response, "not on whitelist");
-               ignore();
+               resolve();
              | _ =>
-               screenshotOrErrorResponse(url, response);
-               ignore();
+               screenshotOrErrorResponse(requestedUrl, response);
+               resolve();
              };
-             resolve();
            })
-        |> catch(_ => {
+        |> catch(error => {
+             Js.log2("error", error);
              ConnectServer.setStatusCode(response, 500);
              ConnectServer.callVariantResponse2(
                response,
