@@ -2,17 +2,32 @@
 'use strict';
 
 var Puppeteer = require("puppeteer");
+var Caml_option = require("bs-platform/lib/js/caml_option.js");
 var Caml_exceptions = require("bs-platform/lib/js/caml_exceptions.js");
 
 var ThumbnailNotCreated = Caml_exceptions.create("Screenshot-NewProject.ThumbnailNotCreated");
 
+var maybeBrowserPromise = /* record */[/* contents */undefined];
+
+function getBrowser(param) {
+  var match = maybeBrowserPromise[0];
+  if (match !== undefined) {
+    return Caml_option.valFromOption(match);
+  } else {
+    var newBrowserPromise = Puppeteer.launch({
+          args: /* array */[
+            "--no-sandbox",
+            "--disable-gpu"
+          ]
+        });
+    var newBrowserInstance = Caml_option.some(newBrowserPromise);
+    maybeBrowserPromise[0] = newBrowserInstance;
+    return newBrowserPromise;
+  }
+}
+
 function takeScreenshot(url, fullPage, width, height) {
-  return Puppeteer.launch({
-                  args: /* array */[
-                    "--no-sandbox",
-                    "--disable-gpu"
-                  ]
-                }).then((function (browser) {
+  return getBrowser(/* () */0).then((function (browser) {
                   return browser.newPage().then((function (page) {
                                 return page.setViewport({
                                                     width: width,
@@ -34,7 +49,7 @@ function takeScreenshot(url, fullPage, width, height) {
                                                             fullPage: fullPage
                                                           });
                                               })).then((function (buffer) {
-                                              return browser.close().then((function (param) {
+                                              return page.close().then((function (param) {
                                                             return Promise.resolve(buffer);
                                                           }));
                                             }));
@@ -59,6 +74,8 @@ var CH = 0;
 exports.P = P;
 exports.CH = CH;
 exports.ThumbnailNotCreated = ThumbnailNotCreated;
+exports.maybeBrowserPromise = maybeBrowserPromise;
+exports.getBrowser = getBrowser;
 exports.takeScreenshot = takeScreenshot;
 exports.takeScreenshotDefault = takeScreenshotDefault;
 /* puppeteer Not a pure module */
